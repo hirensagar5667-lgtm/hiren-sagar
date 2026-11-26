@@ -34,6 +34,27 @@ jobs:
           pip install --upgrade pip
           pip install buildozer==1.5.0 "cython==0.29.36" virtualenv
 
+      - name: Patch buildozer manifest-arguments quoting bug
+        run: |
+          python - <<'PY'
+          import os, buildozer
+          p = os.path.join(os.path.dirname(buildozer.__file__), "targets", "android.py")
+          out = []
+          n = 0
+          for line in open(p).read().split("\n"):
+              ind = line[:len(line) - len(line.lstrip())]
+              if "args_body = open(" in line:
+                  line = ind + "args_body = open(extra_manifest_application_arguments, 'rt').read().replace('\\n', ' ').replace('\\t', ' ').strip()"
+                  n += 1
+              elif "'--extra-manifest-application-arguments=" in line:
+                  line = ind + "cmd.append('--extra-manifest-application-arguments=' + args_body)"
+                  n += 1
+              out.append(line)
+          assert n == 2, n
+          open(p, "w").write("\n".join(out))
+          PY
+          grep -n "args_body" "$(python -c 'import buildozer,os;print(os.path.dirname(buildozer.__file__))')/targets/android.py"
+
       - name: Build APK
         env:
           BUILDOZER_WARN_ON_ROOT: "0"
