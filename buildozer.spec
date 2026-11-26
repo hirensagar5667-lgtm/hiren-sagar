@@ -8,7 +8,7 @@ source.include_patterns = templates/*,data/*
 # credentials must NEVER be bundled into the APK
 source.exclude_patterns = .env,*.env,env.py,tests/*,.github/*,README.md
 version = 1.0.0
-requirements = python3==3.11.5,hostpython3==3.11.5,kivy==2.3.0,pyjnius,android,numpy,flask==2.3.3,werkzeug==2.3.8,jinja2==3.1.4,markupsafe,itsdangerous==2.1.2,click==8.1.7,blinker==1.7.0,requests==2.31.0,urllib3==1.26.18,idna==3.7,charset-normalizer==3.3.2,certifi,pyotp==2.9.0,liblzma,libbz2
+requirements = python3==3.11.5,hostpython3==3.11.5,kivy==2.3.0,pyjnius,android,numpy,flask==2.2.5,werkzeug==2.2.3,jinja2==3.1.4,markupsafe,itsdangerous==2.1.2,click==8.1.7,blinker==1.7.0,requests==2.31.0,urllib3==1.26.18,idna==3.7,charset-normalizer==3.3.2,certifi,pyotp==2.9.0,liblzma,libbz2
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET,WAKE_LOCK
