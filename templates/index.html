@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>HIREN SAGAR • OB Terminal</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#c9d1d9;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--yellow:#d29922;--muted:#8b949e}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:12px;padding-bottom:40px}
+  h1{font-size:18px;color:var(--accent);text-align:center;margin-bottom:4px}
+  .sub{font-size:11px;color:var(--muted);text-align:center;margin-bottom:12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+  label{display:block;font-size:13px;margin:8px 0 4px;color:var(--muted)}
+  input,select{width:100%;padding:12px;border-radius:8px;border:1px solid var(--border);background:#0d1117;color:var(--text);font-size:16px}
+  .chk{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:14px;color:var(--text)}
+  .chk input{width:auto}
+  .btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:16px;font-weight:600;margin-top:12px;cursor:pointer}
+  .btn:disabled{opacity:.5}
+  .btn-primary{background:var(--accent);color:#000}.btn-green{background:var(--green);color:#000}
+  .btn-yellow{background:var(--yellow);color:#000}.btn-red{background:var(--red);color:#fff}
+  .tabs{display:flex;gap:8px;margin-bottom:12px}
+  .tab{flex:1;padding:12px 6px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:600}
+  .tab.active{background:var(--accent);color:#000;border-color:var(--accent)}
+  .status{text-align:center;padding:8px;font-size:13px;color:var(--yellow)}
+  .bar{height:8px;background:#21262d;border-radius:4px;overflow:hidden;margin:8px 0}
+  .bar>div{height:100%;width:0;background:var(--accent);transition:width .3s}
+  .signal{border-left:4px solid var(--green);padding:12px;margin:8px 0;background:#111;border-radius:8px;font-size:14px;line-height:1.5}
+  .signal.SELL{border-left-color:var(--red)}
+  .badge{padding:3px 8px;border-radius:4px;font-size:12px;font-weight:bold;color:#fff}
+  .badge.BUY{background:#238636}.badge.SELL{background:#da3633}
+  .pos{color:var(--green)}.neg{color:var(--red)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{background:#111;border-radius:8px;padding:10px;text-align:center}
+  .stat b{display:block;font-size:18px}.stat span{font-size:11px;color:var(--muted)}
+  .hidden{display:none}
+  small{color:var(--muted)}
+</style>
+</head>
+<body>
+<h1>HIREN SAGAR • OB Terminal</h1>
+<div class="sub">Pine-matched order block logic</div>
+<div class="status" id="status">Loading...</div>
+
+<!-- One-time setup. Shown ONLY if the device has no credentials yet. Values go to the
+     device's private storage and are never sent back to this page. -->
+<div id="setup" class="card hidden">
+  <h2 style="font-size:15px;margin-bottom:6px">One-time Setup</h2>
+  <small>Ye sirf pehli baar. Values phone ke private storage me save hoti hain, page me kabhi wapas nahi aati.</small>
+  <label>API Key</label><input id="s_api" type="password" autocomplete="off">
+  <label>Client Code</label><input id="s_cc" autocomplete="off">
+  <label>PIN</label><input id="s_pin" type="password" autocomplete="off">
+  <label>TOTP Secret</label><input id="s_totp" type="password" autocomplete="off">
+  <button class="btn btn-primary" onclick="saveSetup()">Save on device</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="t-scan" onclick="showMode('scan')">Live Scan</div>
+  <div class="tab" id="t-audit" onclick="showMode('audit')">Day Audit</div>
+  <div class="tab" id="t-backtest" onclick="showMode('backtest')">Backtest</div>
+</div>
+
+<div class="card">
+  <label>Universe</label>
+  <select id="universe"></select>
+  <label>Timeframe</label>
+  <select id="tf">
+    <option value="ONE_MINUTE">1 Minute</option><option value="THREE_MINUTE">3 Minute</option>
+    <option value="FIVE_MINUTE">5 Minute</option><option value="FIFTEEN_MINUTE" selected>15 Minute</option>
+    <option value="ONE_HOUR">1 Hour</option><option value="ONE_DAY">Daily</option>
+  </select>
+
+  <div id="p-scan">
+    <label class="chk"><input type="checkbox" id="live"> Live forming candle (preview)</label>
+    <label class="chk"><input type="checkbox" id="sd"> Opposite S/D zone 2R ke andar ho to hide</label>
+    <button class="btn btn-green" onclick="start('scan')">Start Live Scan</button>
+  </div>
+  <div id="p-audit" class="hidden">
+    <label>Target Date (DD-MM-YYYY)</label><input id="a_date" placeholder="26-11-2026">
+    <button class="btn btn-yellow" onclick="start('audit')">Run Day Audit</button>
+  </div>
+  <div id="p-backtest" class="hidden">
+    <label>From (DD-MM-YYYY)</label><input id="b_from" placeholder="01-11-2026">
+    <label>To (DD-MM-YYYY)</label><input id="b_to" placeholder="26-11-2026">
+    <label class="chk"><input type="checkbox" id="b_day"> Same-day square-off</label>
+    <button class="btn btn-primary" onclick="start('backtest')">Run Backtest</button>
+  </div>
+  <button class="btn btn-red hidden" id="stopBtn" onclick="stopJob()">Stop</button>
+</div>
+
+<div class="card hidden" id="progressCard">
+  <div id="progText" style="font-size:13px"></div>
+  <div class="bar"><div id="progBar"></div></div>
+</div>
+<div id="summary"></div>
+<div id="results"></div>
+
+<script>
+let mode='scan', jobId=null, timer=null, seen=0, es=[];
+const $=id=>document.getElementById(id);
+const api=(u,o)=>fetch(u,o).then(r=>r.json());
+const post=(u,b)=>api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
+const fx=v=>v==null?'-':Number(v).toFixed(2);
+
+function showMode(m){
+  mode=m;
+  ['scan','audit','backtest'].forEach(k=>{
+    $('t-'+k).classList.toggle('active',k===m);
+    $('p-'+k).classList.toggle('hidden',k!==m);
+  });
+}
+
+async function init(){
+  const s=await api('/api/status');
+  const u=$('universe');
+  const names={nifty500:'Nifty 500',fno:'F&O / Custom'};
+  u.innerHTML='';
+  Object.entries(s.universes).forEach(([k,n])=>{
+    const o=document.createElement('option');
+    o.value=k;o.textContent=`${names[k]||k} (${n})`;o.disabled=n===0;u.appendChild(o);
+  });
+  const firstOk=[...u.options].find(o=>!o.disabled); if(firstOk) u.value=firstOk.value;
+  $('setup').classList.toggle('hidden',s.configured);
+  $('status').textContent=s.configured
+    ? `Ready • ${s.tokens.toLocaleString()} tokens • ${s.logic}`
+    : 'Credentials set nahi hain — niche one-time setup karo (ya server par .env rakho)';
+}
+
+async function saveSetup(){
+  const r=await post('/api/setup',{api_key:$('s_api').value,client_code:$('s_cc').value,pin:$('s_pin').value,totp_secret:$('s_totp').value});
+  ['s_api','s_cc','s_pin','s_totp'].forEach(i=>$(i).value='');
+  $('status').textContent=r.message;
+  if(r.ok) init();
+}
+
+async function start(kind){
+  const body={universe:$('universe').value,tf:$('tf').value};
+  if(kind==='scan'){body.live=$('live').checked;body.sd_filter=$('sd').checked}
+  if(kind==='audit'){body.date=$('a_date').value}
+  if(kind==='backtest'){body.from_date=$('b_from').value;body.to_date=$('b_to').value;body.day_only=$('b_day').checked}
+  const r=await post('/api/'+kind,body);
+  if(!r.ok){$('status').textContent=r.message;return}
+  jobId=r.job;seen=0;es=[];
+  $('results').innerHTML='';$('summary').innerHTML='';
+  $('progressCard').classList.remove('hidden');$('stopBtn').classList.remove('hidden');
+  $('status').textContent='Running...';
+  clearInterval(timer);timer=setInterval(poll,1500);poll();
+}
+
+async function stopJob(){await post('/api/cancel');$('status').textContent='Stopping...'}
+
+async function poll(){
+  const j=await api(`/api/job/${jobId}?since=${seen}`);
+  if(j.state==='missing'){clearInterval(timer);return}
+  seen+=j.results.length;
+  j.results.forEach(r=>{es.push(r);$('results').insertAdjacentHTML('beforeend',card(j.kind,r))});
+  const pct=j.total?Math.round(j.done/j.total*100):0;
+  $('progBar').style.width=pct+'%';
+  $('progText').textContent=`${j.done}/${j.total} • ${j.current} • ${j.count} results • ${j.elapsed}s`;
+  if(j.state!=='running'){
+    clearInterval(timer);$('stopBtn').classList.add('hidden');
+    $('status').textContent=j.state==='error'?('Error: '+j.error):j.state==='cancelled'?'Stopped':'Done';
+    if(j.summary) $('summary').innerHTML=summary(j.kind,j.summary);
+    if(j.state==='done'&&!es.length) $('results').innerHTML='<p class="sub">Koi signal nahi mila.</p>';
+  }
+}
+
+function card(kind,r){
+  if(kind==='scan') return `<div class="signal ${r.side}"><span class="badge ${r.side}">${r.side}</span> <b>${r.symbol}</b> <small>${r.time} • ${r.status}</small><br>
+    Entry <b>${fx(r.entry)}</b> • SL <span class="neg">${fx(r.sl)}</span> <small>(${r.risk_pct}%)</small><br>
+    T1 ${fx(r.t1)} • T2 ${fx(r.t2)} • T3 ${fx(r.t3)}<br>
+    <small>S/D: ${r.sd_zone?'zone support':'—'}${r.sd_obst_r!=null?' • opp zone '+r.sd_obst_r+'R':''}${r.sd_blocked?' • ⚠ blocked':''}</small></div>`;
+  if(kind==='audit') return `<div class="signal ${r.side}"><span class="badge ${r.side}">${r.side}</span> <b>${r.symbol}</b> <small>${r.time}</small><br>
+    Entry ${fx(r.entry)} • Close ${fx(r.day_close)} • <b class="${r.pnl_pct>0?'pos':'neg'}">${r.pnl_pct>0?'+':''}${r.pnl_pct}%</b><br>
+    Milestone: <b>${r.first_hit}</b></div>`;
+  return `<div class="signal ${r.side}"><span class="badge ${r.side}">${r.side}</span> <b>${r.symbol}</b> <small>${r.date} ${r.time}</small><br>
+    Entry ${fx(r.entry)} • SL ${fx(r.sl)} • Exit ${fx(r.exit)}<br>
+    ${r.result} • T${r.targets_hit} • <b class="${r.r>0?'pos':r.r<0?'neg':''}">${r.r>0?'+':''}${r.r}R</b></div>`;
+}
+
+function summary(kind,s){
+  const st=(v,l,c)=>`<div class="stat"><b class="${c||''}">${v}</b><span>${l}</span></div>`;
+  if(kind==='scan') return `<div class="grid">${st(s.signals,'Signals')}${st(s.symbols,'Symbols scanned')}</div>`;
+  if(kind==='audit') return `<div class="grid">${st(s.signals,'Signals')}${st(s.win_pct+'%','Profitable at close')}${st(s.avg_pnl+'%','Avg P&L',s.avg_pnl>=0?'pos':'neg')}${st(s.profitable,'Winners')}</div>`;
+  if(!s.trades) return '';
+  return `<div class="grid">${st(s.trades,'Trades')}${st(s.win_rate+'%','Win rate')}${st((s.total_r>0?'+':'')+s.total_r+'R','Total R',s.total_r>=0?'pos':'neg')}${st(s.pf==null?'∞':s.pf,'Profit factor')}${st(s.avg_r+'R','Avg R')}${st(s.best+' / '+s.worst,'Best / Worst R')}</div>`;
+}
+init();
+</script>
+</body>
+</html>
