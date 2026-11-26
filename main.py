@@ -6,15 +6,41 @@ import socket
 import sys
 import threading
 import time
+import traceback
 
 PORT = 5000
 URL = f"http://127.0.0.1:{PORT}"
 ON_ANDROID = "ANDROID_ARGUMENT" in os.environ or hasattr(sys, "getandroidapilevel")
 
 
+_ERR = {"text": ""}
+
+
+def _show(msg):
+    """Show a status/error text on the splash screen (Android only)."""
+    if not ON_ANDROID:
+        print(msg)
+        return
+    try:
+        from kivy.clock import Clock
+        from kivy.app import App
+
+        def _set(dt):
+            app_ = App.get_running_app()
+            if app_ is not None and app_.root is not None:
+                app_.root.text = msg
+        Clock.schedule_once(_set, 0)
+    except Exception:
+        pass
+
+
 def start_server():
-    import app
-    app.run(host="127.0.0.1", port=PORT)
+    try:
+        import app
+        app.run(host="127.0.0.1", port=PORT)
+    except BaseException:
+        _ERR["text"] = traceback.format_exc()
+        _show("SERVER START ERROR:\n\n" + _ERR["text"][-1800:])
 
 
 def wait_for_server(timeout=30):
@@ -43,15 +69,18 @@ if ON_ANDROID:
 
     @run_on_ui_thread
     def _create_webview():
-        activity = PythonActivity.mActivity
-        wv = WebView(activity)
-        s = wv.getSettings()
-        s.setJavaScriptEnabled(True)
-        s.setDomStorageEnabled(True)
-        wv.setWebViewClient(WebViewClient())
-        activity.addContentView(wv, LayoutParams(-1, -1))
-        wv.loadUrl(URL)
-        _webview["wv"] = wv
+        try:
+            activity = PythonActivity.mActivity
+            wv = WebView(activity)
+            s = wv.getSettings()
+            s.setJavaScriptEnabled(True)
+            s.setDomStorageEnabled(True)
+            wv.setWebViewClient(WebViewClient())
+            activity.addContentView(wv, LayoutParams(-1, -1))
+            wv.loadUrl(URL)
+            _webview["wv"] = wv
+        except BaseException:
+            _show("WEBVIEW ERROR:\n\n" + traceback.format_exc()[-1800:])
 
     @run_on_ui_thread
     def _go_back_or_exit():
@@ -66,11 +95,15 @@ if ON_ANDROID:
             threading.Thread(target=start_server, daemon=True).start()
             threading.Thread(target=self._open, daemon=True).start()
             Window.bind(on_keyboard=self._on_key)
-            return Label(text="HIREN SAGAR starting...")
+            return Label(text="HIREN SAGAR starting...", font_size="12sp", halign="left",
+                         valign="top", text_size=(Window.width - 24, Window.height - 24))
 
         def _open(self):
             if wait_for_server():
+                _show("Server up, opening screen...")
                 _create_webview()
+            elif not _ERR["text"]:
+                _show("Server did not start within 30s (no error captured).")
 
         def _on_key(self, window, key, *args):
             if key == 27:  # back button
